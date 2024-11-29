@@ -1,0 +1,109 @@
+name: Production CI
+env:
+  # VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+on:
+  push:
+    branches:
+      - develop
+jobs:
+  Setup:
+    runs-on: ubuntu-latest
+    steps:
+      # checkout and install pnpm
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        id: pnpm-install
+        with:
+          version: 9
+          run_install: false
+
+      # setup node
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      # install dependencies
+      - run: npx pnpm i -r
+
+      # determine whether @bottlesteam/bottle, @bottlesteam/web is cached on remote
+      - name: Determine cache status for each services
+        id: determine-status
+        run: |
+          pnpx turbo run build --dry-run=json > result.json
+          cache_status_docs=$(jq -r '.tasks[] | select(.taskId == "docs#build") | .cache.status' result.json)
+          cache_status_web=$(jq -r '.tasks[] | select(.taskId == "web#build") | .cache.status' result.json)
+          echo "cache_status_docs=$cache_status_docs" >> $GITHUB_OUTPUT
+          echo "cache_status_web=$cache_status_web" >> $GITHUB_OUTPUT
+
+      - name: Cache Status Print
+        run: |
+          echo "cache_status_docs: ${{ steps.determine-status.outputs.cache_status_docs }}"
+          echo "cache_status_web: ${{ steps.determine-status.outputs.cache_status_web }}"
+
+      # run turbo tasks
+      - run: pnpm run build
+
+  Deploy_Bottle_to_Vercel:
+    # deploy Bottle to vercel
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_BOTTLE }}
+    needs: Setup
+    steps:
+      # checkout and install pnpm
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        id: pnpm-install
+        with:
+          version: 9
+          run_install: false
+      # setup node
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Deploy to Vercel if needed
+        run: |
+          npm install --global vercel@latest
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  Deploy_Web_to_Vercel:
+    # deploy Web to vercel
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+    needs: Setup
+    steps:
+      # checkout and install pnpm
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        id: pnpm-install
+        with:
+          version: 9
+          run_install: false
+      # setup node
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Deploy to Vercel if needed
+        run: |
+          npm install --global vercel@latest
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
