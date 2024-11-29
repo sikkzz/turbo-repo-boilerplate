@@ -1,6 +1,6 @@
 name: Production CI
 env:
-  # VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 on:
@@ -48,11 +48,11 @@ jobs:
       # run turbo tasks
       - run: pnpm run build
 
-  Deploy_Bottle_to_Vercel:
+  Deploy_Docs_to_Vercel:
     # deploy Bottle to vercel
     runs-on: ubuntu-latest
     env:
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_BOTTLE }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_DOCS }}
     needs: Setup
     steps:
       # checkout and install pnpm
@@ -105,5 +105,3 @@ jobs:
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
           vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
           vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
